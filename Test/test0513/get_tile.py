@@ -4,7 +4,7 @@
     @File : get_tile.py
     @Author: LiJiaoyang
     @Date : 2020/5/13
-    @Desc :基本功能实现了，下载速度比较慢
+    @Desc :基本功能实现了，下载速度比较慢,folders文件下的还没有爬
 '''
 
 import requests
@@ -35,13 +35,13 @@ def get_main_page(url):
     netloc = domin.netloc
     # print(dir(domin))
     # netloc是需要拼接的， hostname不带端口号
-    print('netloc', domin.netloc)
-    print('scheme', domin.scheme)
+    # print('netloc', domin.netloc)
+    # print('scheme', domin.scheme)
     # print('hostname', domin.hostname)
     # print('port', domin.port)
     req = requests.get(url, headers=headers, proxies=proxies)
     html_encoding = req.encoding
-    print('编码方式为：', html_encoding)
+    # print('编码方式为：', html_encoding)
     if req.status_code == 200:
         return req, netloc, scheme
     else:
@@ -58,16 +58,17 @@ def get_services(url):
         for ul in soup.select('.rbody>ul'):
             # 获取两个ul中的内容，一个folders，一个services
             for item in ul.select('li>a'):
-                print('------------------------------------')
-                print('链接显示内容:', item.get_text())
+                # print('------------------------------------')
+                # print('链接显示内容:', item.get_text())
                 path = item['href']
                 data = [schme, netloc, path, '', '', '']
                 a_href = parse.urlunparse(data)
 
                 if re.findall(r'(^.*?MapServer$)', str(a_href)) or re.findall(r'(^.*?MapServer/$)', str(a_href)):
+                    print('-------------------具体到server---------------------------')
                     if item.get_text() != 'beijing_0514':
                         create_table(item.get_text())
-                        print('server详情链接：', a_href)
+                        # print('server详情链接：', a_href)
                         get_detail_page(a_href, item.get_text())
                 # my_str = 'MapServer'
                 # if re.findall(my_str, str(a_href)):
@@ -83,7 +84,20 @@ def get_detail_page(url, table):
     # data = [schme, netloc, path, '', '', '']
     html, netloc, scheme = get_main_page(url)
     if html:
+        # print(html.text)
         soup = BeautifulSoup(html.text, 'lxml')
+        # 爬取json
+        for a in soup.select('.apiref>a'):
+            is_json = a.get_text()
+            if is_json == 'JSON':
+                create_table_service()
+                json_href = url + a['href']
+                html, res1,res2 = get_main_page(json_href)
+                if html:
+                    json = html.text
+                    insert_into_sqlite_json(json, table)
+        # input('----------------11111111111111111111111--------------------')
+        # 爬取数据
         for ul in soup.select('.rbody>ul>li>ul'):
             start_row = 0
             start_col = 0
@@ -92,16 +106,16 @@ def get_detail_page(url, table):
             level = 0
             href_prefix = []
             for item in ul.select('li>a'):
-                print('href:', item)
+                # print('href:', item)
                 path = item['href']
                 data = [scheme, netloc, path, '', '', '']
                 detail_href = parse.urlunparse(data)
-                print('detail_href', detail_href)
+                # print('detail_href', detail_href)
                 # 判断详情链接是否是瓦片的链接
                 if re.findall(r'(^.*?MapServer/tile/(\d{1,})/(\d{1,})/(\d{1,})$)', str(detail_href)):
-                    print('符合条件的链接', detail_href)
+                    # print('符合条件的链接', detail_href)
                     href_prefix = str(detail_href).split('/')[:-3]
-                    print(str(detail_href).split('/')[:-3])
+                    # print(str(detail_href).split('/')[:-3])
                     text = item.get_text()
                     level = int(str(detail_href).split('/')[-3])
                     if text == 'Start Tile':
@@ -112,7 +126,7 @@ def get_detail_page(url, table):
                         end_col = int(str(detail_href).split('/')[-1])
                     else:
                         pass
-            print('行列：', start_row, start_col, end_row, end_col, level)
+            # print('行列：', start_row, start_col, end_row, end_col, level)
             if start_row == 0 and start_col == 0 and end_row == 0 and end_col == 0:
                 pass
             else:
@@ -131,11 +145,11 @@ def get_tile(url, start_row, start_col, end_row, end_col, level, table):
     :return:
     '''
     url_prefix = '/'.join(url)
-    print('前缀链接：', url_prefix)
+    # print('前缀链接：', url_prefix)
     for row in range(start_row, end_row+1):
         for col in range(start_col, end_col+1):
             tile_href = url_prefix+'/'+str(level)+'/'+str(row)+'/'+str(col)
-            print(tile_href)
+            # print(tile_href)
             html, netloc, scheme = get_main_page(tile_href)
             if html:
                 image = html.content
@@ -149,7 +163,19 @@ def create_table(table_name):
     :return:
     '''
     # sql = "create table IF NOT EXISTS ({})(id integer primary key not null authorization ,row integer , col integer , level integer ,image blob)"
-    cur.execute("create table {}(id integer primary key AUTOINCREMENT,row integer , col integer , level integer ,image blob)".format(table_name))
+    cur.execute("create table if not exists {}(id integer primary key AUTOINCREMENT,row integer , col integer , level integer ,image blob)".format(table_name))
+    coon.commit()
+    print('表创建成功')
+
+
+def create_table_service():
+    '''
+    创建sqlite表
+    :param table_name:
+    :return:
+    '''
+    # sql = "create table IF NOT EXISTS ({})(id integer primary key not null authorization ,row integer , col integer , level integer ,image blob)"
+    cur.execute("create table if not exists service(id integer primary key AUTOINCREMENT, service_name text, service_config text, layer text)")
     coon.commit()
     print('表创建成功')
 
@@ -167,6 +193,18 @@ def insert_into_sqlite(table, row, col, level, image):
 
     cur.execute("insert into {}(row, col, level, image) values (?, ?, ?, ?)".format(table), (row, col, level, image))
     coon.commit()
+
+
+def insert_into_sqlite_json(json, service_name):
+    '''
+    将每个服务的json插入到数据库中
+    :param json:
+    :param service_name:
+    :return:
+    '''
+    cur.execute("insert into service(service_name, service_config) values (?, ?)", (service_name, json))
+    coon.commit()
+    print('json存入成功')
 
 
 if __name__ == '__main__':
