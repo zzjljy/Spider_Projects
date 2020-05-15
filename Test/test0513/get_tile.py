@@ -191,7 +191,7 @@ def insert_into_sqlite(table, row, col, level, image):
     :return:
     '''
 
-    cur.execute("insert into {}(row, col, level, image) values (?, ?, ?, ?)".format(table), (row, col, level, image))
+    cur.execute("insert into {}(row, col, level, image) values (?, ?, ?, ?)".format(table), (row, col, level, sqlite3.Binary(image)))
     coon.commit()
 
 
