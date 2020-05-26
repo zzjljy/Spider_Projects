@@ -4,6 +4,8 @@
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$/Test/Scrapy_Projects/tutorial" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/Test/Scrapy_Projects/scrapydownloadertest" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Test/Scrapy_Projects/image360" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Test/Scrapy_Projects/arcgis_tiles" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/enve" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.6 (Spider_Projects)" jdkType="Python SDK" />
