@@ -3,7 +3,7 @@ import json
 import scrapy
 from scrapy import Request, Spider
 from urllib import parse
-from arcgis_tiles.items import ArcgisTilesJson, ArcgisTiles
+from arcgis_tiles.items import ArcgisTilesJson, ArcgisTilesItem
 
 
 class TilesSpider(scrapy.Spider):
@@ -19,8 +19,6 @@ class TilesSpider(scrapy.Spider):
         pass
 
     def parse(self, response):
-        # self.logger.debug(response)
-        # result = response.text
         services = response.xpath('//div[@class="rbody"]/ul/li')
         for li in services:
             # print(li)
@@ -40,11 +38,14 @@ class TilesSpider(scrapy.Spider):
                 pass
             else:
                 # folder
+                folder_path = li.xpath('./a/@href').extract()[0]
+                if folder_path:
+                    folder_link = self.base_url + folder_path
+                    yield Request(folder_link, callback=self.parse_folders, dont_filter=True)
                 pass
         pass
 
     def parse_services(self, response):
-        print('进入services页面')
         # 请求的url，为了和json拼接
         tile_base_url = response.request.url
         # tile services 的名称，对应数据库中的名称
@@ -84,7 +85,7 @@ class TilesSpider(scrapy.Spider):
                                 'row': row,
                                 'col': col,
                                 'level': level
-                            })
+                            }, dont_filter=True)
                 else:
                     pass
 
@@ -92,6 +93,18 @@ class TilesSpider(scrapy.Spider):
             pass
 
     def parse_folders(self, response):
+        print('folder页面进入')
+        # /html/body/div/ul
+        ul = response.xpath('//div[@class="rbody"]/ul/li')
+        if ul:
+            for li in ul:
+                content = li.xpath('./text()').extract()[0]
+                if content.strip() == '(MapServer)':
+                    a_path = li.xpath('./a/@href').extract()[0]
+                    service_name = a_text = li.xpath('./a/text()').extract()[0]
+                    service_url = self.base_url + a_path
+                    yield Request(service_url, callback=self.parse_services, dont_filter=True,
+                                   meta={'tile_name': service_name})
         pass
 
     def parse_json(self, response):
@@ -109,16 +122,16 @@ class TilesSpider(scrapy.Spider):
         # 瓦片解析
         status_code = response.status
         if status_code == 200:
-            item = ArcgisTiles()
+            item_tile = ArcgisTilesItem()
             level = response.meta.get('level')
             row = response.meta.get('row')
             col = response.meta.get('col')
             tile_name = response.meta.get('tile_name')
             tile_content = response.body
-            item['collection'] = tile_name
-            item['row'] = row
-            item['col'] = col
-            item['level'] = level
-            item['image'] = tile_content
-            yield item
+            item_tile['tile_collection'] = tile_name
+            item_tile['row'] = row
+            item_tile['col'] = col
+            item_tile['level'] = level
+            item_tile['image'] = tile_content
+            yield item_tile
         pass

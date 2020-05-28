@@ -7,6 +7,7 @@
 import psycopg2
 import pymysql
 import pymongo
+from arcgis_tiles.items import *
 
 
 class ArcgisTilesPipeline:
@@ -43,17 +44,18 @@ class PostgresJsonPipeline():
         self.db.close()
 
     def process_item(self, item, spider):
-        data = dict(item)
-        keys = ', '.join(data.keys())
-        values = ', '.join(['%s'] * len(data))
-        # sql = 'insert into service(service_name, service_config) values("%s")' % (values)
-        # sql = "insert into service(service_name, service_config) values ('1', '1')"
-        sql = 'insert into service (service_name, service_config) values (%s)' % (values)
-        try:
-            self.cursor.execute(sql, tuple(data.values()))
-            self.db.commit()
-        except Exception as e:
-            self.db.rollback()
+        if isinstance(item, ArcgisTilesJson):
+            data = dict(item)
+            keys = ', '.join(data.keys())
+            values = ', '.join(['%s'] * len(data))
+            # sql = 'insert into service(service_name, service_config) values("%s")' % (values)
+            # sql = "insert into service(service_name, service_config) values ('1', '1')"
+            sql = 'insert into service (service_name, service_config) values (%s)' % (values)
+            try:
+                self.cursor.execute(sql, tuple(data.values()))
+                self.db.commit()
+            except Exception as e:
+                self.db.rollback()
         return item
 
 
@@ -111,14 +113,16 @@ class MongoPipeline():
 
     def open_spider(self, spider):
         self.client = pymongo.MongoClient(self.mongo_uri)
-        self.db = self.client[self.mongo_db]
+        self.db1 = self.client[self.mongo_db]
 
     def process_item(self, item, spider):
-        data = dict(item)
-        name = data.get('collection')
-        # name = item.collection
-        del data['collection']
-        self.db[name].insert(data)
+        # 瓦片进入后类型应该是ArcgisTilesItem，但是不知道为什么变成了None
+        if isinstance(item, ArcgisTilesItem):
+            data = dict(item)
+            name = data.get('tile_collection')
+            # name = item.collection
+            del data['tile_collection']
+            self.db1[name].insert(data)
         return item
 
     def close_spider(self, spider):

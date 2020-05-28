@@ -82,8 +82,8 @@ DOWNLOADER_MIDDLEWARES = {
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
    # 'arcgis_tiles.pipelines.ArcgisTilesPipeline': 300,
-   'arcgis_tiles.pipelines.PostgresJsonPipeline': 310,
-   'arcgis_tiles.pipelines.MongoPipeline': 302
+   'arcgis_tiles.pipelines.PostgresJsonPipeline': 302,
+   'arcgis_tiles.pipelines.MongoPipeline': 301
     # 'arcgis_tiles.pipelines.MysqlPipeline': 302,
 }
 

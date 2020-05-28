@@ -8,10 +8,10 @@
 import scrapy
 
 
-class ArcgisTilesItem(scrapy.Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass
+# class ArcgisTilesItem(scrapy.Item):
+#     # define the fields for your item here like:
+#     # name = scrapy.Field()
+#     pass
 
 
 class ArcgisTilesJson(scrapy.Item):
@@ -21,8 +21,8 @@ class ArcgisTilesJson(scrapy.Item):
     layers = scrapy.Field()
 
 
-class ArcgisTiles(scrapy.Item):
-    collection = scrapy.Field()
+class ArcgisTilesItem(scrapy.Item):
+    tile_collection = scrapy.Field()
     row = scrapy.Field()
     col = scrapy.Field()
     level = scrapy.Field()
