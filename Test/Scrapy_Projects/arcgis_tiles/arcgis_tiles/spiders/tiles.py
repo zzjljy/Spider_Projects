@@ -8,9 +8,9 @@ from arcgis_tiles.items import ArcgisTilesJson, ArcgisTilesItem
 
 class TilesSpider(scrapy.Spider):
     name = 'tiles'
-    allowed_domains = ['61.175.211.102']
-    base_url = 'http://61.175.211.102'
-    start_urls = ['http://61.175.211.102/arcgis/rest/services/']
+    allowed_domains = ['61.240.19.180:6080']
+    base_url = 'http://61.240.19.180:6080'
+    start_urls = ['http://61.240.19.180:6080/arcgis/rest/services/']
     scheme = 'http'
 
     def start_requests(self):
@@ -76,16 +76,17 @@ class TilesSpider(scrapy.Spider):
                     end_row = int(end_link.split('/')[-2])
                     end_col = int(end_link.split('/')[-1])
                     path = '/'.join(start_link.split('/')[:-3])
-                    for row in range(start_row, end_row+1):
-                        for col in range(start_col, end_col+1):
-                            base_path = path + '/' + str(level) + '/' + str(row) + '/' + str(col)
-                            tile_url = self.base_url + base_path
-                            yield Request(tile_url, callback=self.parse_tile, meta={
-                                'tile_name': tile_name,
-                                'row': row,
-                                'col': col,
-                                'level': level
-                            }, dont_filter=True)
+                    if level < 1:
+                        for row in range(start_row, end_row+1):
+                            for col in range(start_col, end_col+1):
+                                base_path = path + '/' + str(level) + '/' + str(row) + '/' + str(col)
+                                tile_url = self.base_url + base_path
+                                yield Request(tile_url, callback=self.parse_tile, meta={
+                                    'tile_name': tile_name,
+                                    'row': row,
+                                    'col': col,
+                                    'level': level
+                                }, dont_filter=True)
                 else:
                     pass
 
@@ -103,8 +104,9 @@ class TilesSpider(scrapy.Spider):
                     a_path = li.xpath('./a/@href').extract()[0]
                     service_name = a_text = li.xpath('./a/text()').extract()[0]
                     service_url = self.base_url + a_path
-                    yield Request(service_url, callback=self.parse_services, dont_filter=True,
-                                   meta={'tile_name': service_name})
+                    if service_url != 'http://61.240.19.180:6080/arcgis/rest/services/JN/TJ_DZDT/MapServer':
+                        yield Request(service_url, callback=self.parse_services, dont_filter=True,
+                                       meta={'tile_name': service_name})
         pass
 
     def parse_json(self, response):
@@ -129,9 +131,9 @@ class TilesSpider(scrapy.Spider):
             tile_name = response.meta.get('tile_name')
             tile_content = response.body
             item_tile['tile_collection'] = tile_name
-            item_tile['row'] = row
-            item_tile['col'] = col
-            item_tile['level'] = level
+            item_tile['x'] = row
+            item_tile['y'] = col
+            item_tile['z'] = level
             item_tile['image'] = tile_content
             yield item_tile
         pass

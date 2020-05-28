@@ -7,6 +7,7 @@
 import psycopg2
 import pymysql
 import pymongo
+import sqlite3
 from arcgis_tiles.items import *
 
 
@@ -94,11 +95,6 @@ class MysqlPipeline():
         self.db.commit()
         return item
 
-
-class SqlitePipeline():
-    pass
-
-
 class MongoPipeline():
     def __init__(self, mongo_uri, mongo_db):
         self.mongo_uri = mongo_uri
@@ -127,3 +123,40 @@ class MongoPipeline():
 
     def close_spider(self, spider):
         self.client.close()
+
+
+class Sqlite3Pipeline():
+
+    def __init__(self, sqlite_file, sqlite_table):
+        self.sqlite_file = sqlite_file
+        self.sqlite_table = sqlite_table
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(
+            sqlite_file=crawler.settings.get('SQLITE_FILE'),  # 从 settings.py 提取
+            # sqlite_table=crawler.settings.get('SQLITE_TABLE')
+        )
+
+    def open_spider(self, spider):
+        self.conn = sqlite3.connect(self.sqlite_file)
+        self.cur = self.conn.cursor()
+
+    def close_spider(self, spider):
+        self.conn.close()
+
+    def process_item(self, item, spider):
+        if isinstance(item, ArcgisTilesItem):
+            data = dict(item)
+            name = data.get('tile_collection')
+            del data['tile_collection']
+            self.cur.execute(
+                "create table if not exists {}(id integer primary key AUTOINCREMENT,x integer , y integer , "
+                "z integer ,image blob)".format(name))
+            self.coon.commit()
+            insert_sql = "insert into {0}(x, y, z, image) values ({2})".format(name, ', '.join(['%s'] * len(data)))
+
+            self.cur.execute(insert_sql, data.values())
+            self.conn.commit()
+
+        return item

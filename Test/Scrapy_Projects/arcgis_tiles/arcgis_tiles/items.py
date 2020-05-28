@@ -23,7 +23,7 @@ class ArcgisTilesJson(scrapy.Item):
 
 class ArcgisTilesItem(scrapy.Item):
     tile_collection = scrapy.Field()
-    row = scrapy.Field()
-    col = scrapy.Field()
-    level = scrapy.Field()
+    x = scrapy.Field()
+    y = scrapy.Field()
+    z = scrapy.Field()
     image = scrapy.Field()
