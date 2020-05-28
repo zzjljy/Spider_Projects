@@ -20,4 +20,10 @@ class ArcgisTilesJson(scrapy.Item):
     service_config = scrapy.Field()
     layers = scrapy.Field()
 
-    pass
+
+class ArcgisTiles(scrapy.Item):
+    collection = scrapy.Field()
+    row = scrapy.Field()
+    col = scrapy.Field()
+    level = scrapy.Field()
+    image = scrapy.Field()

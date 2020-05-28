@@ -26,6 +26,9 @@ MYSQL_USER = 'root'
 MYSQL_PASSWORD = '123456'
 MYSQL_PORT = 3306
 
+MONGO_URI = 'localhost'
+MONGO_DB = 'XXL_SYSTEM'
+
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'arcgis_tiles (+http://www.yourdomain.com)'
@@ -64,9 +67,10 @@ ROBOTSTXT_OBEY = False
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
-#    'arcgis_tiles.middlewares.ArcgisTilesDownloaderMiddleware': 543,
-#}
+DOWNLOADER_MIDDLEWARES = {
+   # 'arcgis_tiles.middlewares.ArcgisTilesDownloaderMiddleware': 543,
+   'arcgis_tiles.middlewares.RandomUserAgentMiddleware': 543,
+}
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
@@ -77,8 +81,9 @@ ROBOTSTXT_OBEY = False
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-   'arcgis_tiles.pipelines.ArcgisTilesPipeline': 300,
+   # 'arcgis_tiles.pipelines.ArcgisTilesPipeline': 300,
    'arcgis_tiles.pipelines.PostgresJsonPipeline': 310,
+   'arcgis_tiles.pipelines.MongoPipeline': 302
     # 'arcgis_tiles.pipelines.MysqlPipeline': 302,
 }
 

@@ -3,14 +3,14 @@ import json
 import scrapy
 from scrapy import Request, Spider
 from urllib import parse
-from arcgis_tiles.items import ArcgisTilesJson
+from arcgis_tiles.items import ArcgisTilesJson, ArcgisTiles
 
 
 class TilesSpider(scrapy.Spider):
     name = 'tiles'
-    allowed_domains = ['61.240.19.180:6080']
-    base_url = 'http://61.240.19.180:6080'
-    start_urls = ['http://61.240.19.180:6080/arcgis/rest/services/']
+    allowed_domains = ['61.175.211.102']
+    base_url = 'http://61.175.211.102'
+    start_urls = ['http://61.175.211.102/arcgis/rest/services/']
     scheme = 'http'
 
     def start_requests(self):
@@ -57,12 +57,39 @@ class TilesSpider(scrapy.Spider):
             a_link = '?f=json'
             # tile 的services的json信息
             json_a_href = parse.urljoin(tile_base_url, a_link)
-            # yield Request(json_a_href, callback=self.parse_json, meta={'tile_name': tile_name}, dont_filter=True)
-        # /html/body/div/ul[2]/li[4]/ul[1]/li
-        ul = response.xpath('/html/body/dic[@class="rbody"]/ul/li/ul/li')
-        for li in ul:
-            print(li)
-        pass
+            yield Request(json_a_href, callback=self.parse_json, meta={'tile_name': tile_name}, dont_filter=True)
+        ul = response.xpath('//div[@class="rbody"]/ul/li/ul')
+        # 进入service详情页带startTiles
+        if ul:
+            for li in ul:
+                a_link = li.xpath('./li')
+
+                start_tile = a_link.xpath('./a[1]/text()').extract()[0]
+                if start_tile.strip() == 'Start Tile':
+                    start_link = a_link.xpath('./a[1]/@href').extract()[0]
+                    end_link = a_link.xpath('./a[2]/@href').extract()[0]
+                    end_tile = a_link.xpath('./a[2]/text()').extract()[0]
+                    level = int(start_link.split('/')[-3])
+                    start_row = int(start_link.split('/')[-2])
+                    start_col = int(start_link.split('/')[-1])
+                    end_row = int(end_link.split('/')[-2])
+                    end_col = int(end_link.split('/')[-1])
+                    path = '/'.join(start_link.split('/')[:-3])
+                    for row in range(start_row, end_row+1):
+                        for col in range(start_col, end_col+1):
+                            base_path = path + '/' + str(level) + '/' + str(row) + '/' + str(col)
+                            tile_url = self.base_url + base_path
+                            yield Request(tile_url, callback=self.parse_tile, meta={
+                                'tile_name': tile_name,
+                                'row': row,
+                                'col': col,
+                                'level': level
+                            })
+                else:
+                    pass
+
+        else:
+            pass
 
     def parse_folders(self, response):
         pass
@@ -76,4 +103,22 @@ class TilesSpider(scrapy.Spider):
         tile_item['service_name'] = tile_name
         tile_item['service_config'] = tile_json
         yield tile_item
+        pass
+
+    def parse_tile(self, response):
+        # 瓦片解析
+        status_code = response.status
+        if status_code == 200:
+            item = ArcgisTiles()
+            level = response.meta.get('level')
+            row = response.meta.get('row')
+            col = response.meta.get('col')
+            tile_name = response.meta.get('tile_name')
+            tile_content = response.body
+            item['collection'] = tile_name
+            item['row'] = row
+            item['col'] = col
+            item['level'] = level
+            item['image'] = tile_content
+            yield item
         pass
