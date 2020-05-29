@@ -209,7 +209,8 @@ def insert_into_sqlite_json(json, service_name):
 
 if __name__ == '__main__':
 
-    url = 'http://61.240.19.180:6080/arcgis/rest/services/'
-    get_services(url)
-    coon.close()
+    # url = 'http://61.240.19.180:6080/arcgis/rest/services/'
+    # get_services(url)
+    # coon.close()
     # get_main_page(url)
+    create_table('JN/ZJ')

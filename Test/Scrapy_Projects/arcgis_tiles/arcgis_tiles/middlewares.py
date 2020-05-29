@@ -125,3 +125,47 @@ class RandomUserAgentMiddleware():
 
     def process_request(self, request, spider):
         request.headers['User-Agent'] = random.choice(self.user_agents)
+        request.headers[
+            'Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3'
+        request.headers["Accept-Language"] = "zh-CN,zh;q=0.9"
+        request.headers["Connection"] = "keep-alive"
+
+
+import random
+import time
+# from scrapy import log
+
+
+# logger = logging.getLogger()
+
+class ProxyMiddleWare(object):
+    """docstring for ProxyMiddleWare"""
+
+    def process_request(self, request, spider):
+        '''对request对象加上proxy'''
+        proxy = self.get_random_proxy()
+        print("this is request ip:" + proxy)
+        request.meta['proxy'] = proxy
+
+    def process_response(self, request, response, spider):
+        '''对返回的response处理'''
+        # 如果返回的response状态不是200，重新生成当前request对象
+        if response.status != 200:
+            proxy = self.get_random_proxy()
+            print("this is response ip:" + proxy)
+            # 对当前reque加上代理
+            request.meta['proxy'] = proxy
+            return request
+        return response
+
+    def get_random_proxy(self):
+        '''随机从文件中读取proxy'''
+        while 1:
+            with open('G:\\Scrapy_work\\myproxies\\myproxies\\proxies.txt', 'r') as f:
+                proxies = f.readlines()
+            if proxies:
+                break
+            else:
+                time.sleep(1)
+        proxy = random.choice(proxies).strip()
+        return proxy

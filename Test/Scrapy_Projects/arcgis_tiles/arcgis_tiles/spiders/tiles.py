@@ -8,9 +8,9 @@ from arcgis_tiles.items import ArcgisTilesJson, ArcgisTilesItem
 
 class TilesSpider(scrapy.Spider):
     name = 'tiles'
-    allowed_domains = ['61.240.19.180:6080']
-    base_url = 'http://61.240.19.180:6080'
-    start_urls = ['http://61.240.19.180:6080/arcgis/rest/services/']
+    allowed_domains = ['61.175.211.102']
+    base_url = 'http://61.175.211.102'
+    start_urls = ['http://61.175.211.102/arcgis/rest/services/']
     scheme = 'http'
 
     def start_requests(self):
@@ -31,7 +31,7 @@ class TilesSpider(scrapy.Spider):
                 if text.strip() == '(MapServer)':
                     # 链接和text，text是layer名
                     a_link = li.xpath('./a/@href').extract()[0]
-                    tile_name = a_text = li.xpath('./a/text()').extract()[0]
+                    tile_name = a_text = '_'.join(li.xpath('./a/text()').extract()[0].split('/'))
                     a_href = self.base_url + a_link
                     # print(a_href, a_text)
                     yield Request(a_href, callback=self.parse_services, dont_filter=True, meta={'tile_name': tile_name})
@@ -102,7 +102,7 @@ class TilesSpider(scrapy.Spider):
                 content = li.xpath('./text()').extract()[0]
                 if content.strip() == '(MapServer)':
                     a_path = li.xpath('./a/@href').extract()[0]
-                    service_name = a_text = li.xpath('./a/text()').extract()[0]
+                    service_name = a_text = '_'.join(li.xpath('./a/text()').extract()[0].split('/'))
                     service_url = self.base_url + a_path
                     if service_url != 'http://61.240.19.180:6080/arcgis/rest/services/JN/TJ_DZDT/MapServer':
                         yield Request(service_url, callback=self.parse_services, dont_filter=True,

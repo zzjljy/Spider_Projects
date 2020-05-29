@@ -4,6 +4,7 @@
 #
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://docs.scrapy.org/en/latest/topics/item-pipeline.html
+# sqlite3中如果表明有/，则会报错，表名称将/换成下划线_
 import psycopg2
 import pymysql
 import pymongo
@@ -127,14 +128,14 @@ class MongoPipeline():
 
 class Sqlite3Pipeline():
 
-    def __init__(self, sqlite_file, sqlite_table):
+    def __init__(self, sqlite_file):
         self.sqlite_file = sqlite_file
-        self.sqlite_table = sqlite_table
+        # self.sqlite_table = sqlite_table
 
     @classmethod
     def from_crawler(cls, crawler):
         return cls(
-            sqlite_file=crawler.settings.get('SQLITE_FILE'),  # 从 settings.py 提取
+            sqlite_file=crawler.settings.get('SQLITE_FILE') # 从 settings.py 提取
             # sqlite_table=crawler.settings.get('SQLITE_TABLE')
         )
 
@@ -148,15 +149,19 @@ class Sqlite3Pipeline():
     def process_item(self, item, spider):
         if isinstance(item, ArcgisTilesItem):
             data = dict(item)
-            name = data.get('tile_collection')
+            name = str(data.get('tile_collection'))
             del data['tile_collection']
-            self.cur.execute(
-                "create table if not exists {}(id integer primary key AUTOINCREMENT,x integer , y integer , "
-                "z integer ,image blob)".format(name))
-            self.coon.commit()
-            insert_sql = "insert into {0}(x, y, z, image) values ({2})".format(name, ', '.join(['%s'] * len(data)))
+            try:
+                self.cur.execute(
+                    "create table if not exists {0}(id integer primary key AUTOINCREMENT,x integer , y integer , "
+                    "z integer ,image blob)".format(name))
+                self.conn.commit()
+            except Exception as e:
+                pass
+            self.cur.execute("insert into {0}(x, y, z, image) values (?, ?, ?, ?)".format(name),
+                        (data.get('x'), data.get('y'), data.get('z'), sqlite3.Binary(data.get('image'))))
 
-            self.cur.execute(insert_sql, data.values())
+            # self.cur.execute(insert_sql, tuple(data.values()))
             self.conn.commit()
 
         return item

@@ -29,6 +29,8 @@ MYSQL_PORT = 3306
 MONGO_URI = 'localhost'
 MONGO_DB = 'XXL_SYSTEM'
 
+SQLITE_FILE = r'D:\zl_datas\data_database\Sqlite\rh_sqlite3.sqlite3'
+
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'arcgis_tiles (+http://www.yourdomain.com)'
@@ -42,7 +44,7 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-#DOWNLOAD_DELAY = 3
+DOWNLOAD_DELAY = 0.3
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16
@@ -83,8 +85,9 @@ DOWNLOADER_MIDDLEWARES = {
 ITEM_PIPELINES = {
    # 'arcgis_tiles.pipelines.ArcgisTilesPipeline': 300,
    'arcgis_tiles.pipelines.PostgresJsonPipeline': 302,
-   'arcgis_tiles.pipelines.MongoPipeline': 301
+   # 'arcgis_tiles.pipelines.MongoPipeline': 300,
     # 'arcgis_tiles.pipelines.MysqlPipeline': 302,
+    'arcgis_tiles.pipelines.Sqlite3Pipeline': 301,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
