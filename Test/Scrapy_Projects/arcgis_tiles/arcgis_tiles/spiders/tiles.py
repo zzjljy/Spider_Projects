@@ -3,15 +3,41 @@ import json
 import scrapy
 from scrapy import Request, Spider
 from urllib import parse
+from urllib.parse import urlencode
 from arcgis_tiles.items import ArcgisTilesJson, ArcgisTilesItem
+from scrapy import Item, Field
 
 
 class TilesSpider(scrapy.Spider):
     name = 'tiles'
-    allowed_domains = ['61.175.211.102']
-    base_url = 'http://61.175.211.102'
-    start_urls = ['http://61.175.211.102/arcgis/rest/services/']
+    allowed_domains = ['61.240.19.180:6080']
+    base_url = 'http://61.240.19.180:6080'
+    start_urls = ['http://61.240.19.180:6080/arcgis/rest/services/']
     scheme = 'http'
+    data_count = {
+        'where': '1=1',
+        'geometryType': 'esriGeometryEnvelope',
+        'spatialRel': 'esriSpatialRelIntersects',
+        'returnGeometry': 'true',
+        'returnTrueCurves': 'false',
+        'returnIdsOnly': 'false',
+        'returnCountOnly': 'true',
+        'returnDistinctValues': 'false',
+        'f': 'pjson',
+    }
+    data_field = {
+        'where': '1=1',
+        'geometryType': 'esriGeometryEnvelope',
+        'spatialRel': 'esriSpatialRelIntersects',
+        'outFields': '*',
+        'returnGeometry': 'true',
+        'returnTrueCurves': 'false',
+        'returnIdsOnly': 'false',
+        'returnCountOnly': 'false',
+        'returnDistinctValues': 'false',
+        'resultOffset': 0,
+        'f': 'pjson',
+    }
 
     def start_requests(self):
         for url in self.start_urls:
@@ -41,7 +67,7 @@ class TilesSpider(scrapy.Spider):
                 folder_path = li.xpath('./a/@href').extract()[0]
                 if folder_path:
                     folder_link = self.base_url + folder_path
-                    yield Request(folder_link, callback=self.parse_folders, dont_filter=True)
+                    # yield Request(folder_link, callback=self.parse_folders, dont_filter=True)
                 pass
         pass
 
@@ -51,14 +77,20 @@ class TilesSpider(scrapy.Spider):
         # tile services 的名称，对应数据库中的名称
         tile_name = response.meta.get('tile_name')
         print('tile_name：', tile_name)
-        # / html / body / table[3] / tbody / tr / td / a[1]
+        # / html / body / table[3] / tbody / tr / td / a[1] json
         json_text = response.xpath('//tr/td[@class="apiref"]/a[1]/text()').extract()[0]
         if json_text.strip() == 'JSON':
             a_link = response.xpath('//tr/td[@class="apiref"]/a[1]/@href').extract()[0]
             a_link = '?f=json'
             # tile 的services的json信息
             json_a_href = parse.urljoin(tile_base_url, a_link)
-            yield Request(json_a_href, callback=self.parse_json, meta={'tile_name': tile_name}, dont_filter=True)
+            # yield Request(json_a_href, callback=self.parse_json, meta={'tile_name': tile_name}, dont_filter=True)
+        # fields 为了获取所有的fields的信息，先
+        params = urlencode(self.data_count)
+        fields_url = tile_base_url + '/0/query?'
+        fields_count_url = tile_base_url + '/0/query?' + params
+        yield Request(fields_count_url, callback=self.parse_fields_count, meta={'tile_name': tile_name,
+                                                                          'fields_url': fields_url}, dont_filter=True)
         ul = response.xpath('//div[@class="rbody"]/ul/li/ul')
         # 进入service详情页带startTiles
         if ul:
@@ -81,12 +113,12 @@ class TilesSpider(scrapy.Spider):
                             for col in range(start_col, end_col+1):
                                 base_path = path + '/' + str(level) + '/' + str(row) + '/' + str(col)
                                 tile_url = self.base_url + base_path
-                                yield Request(tile_url, callback=self.parse_tile, meta={
-                                    'tile_name': tile_name,
-                                    'row': row,
-                                    'col': col,
-                                    'level': level
-                                }, dont_filter=True)
+                                # yield Request(tile_url, callback=self.parse_tile, meta={
+                                #     'tile_name': tile_name,
+                                #     'row': row,
+                                #     'col': col,
+                                #     'level': level
+                                # }, dont_filter=True)
                 else:
                     pass
 
@@ -137,3 +169,36 @@ class TilesSpider(scrapy.Spider):
             item_tile['image'] = tile_content
             yield item_tile
         pass
+
+    def parse_fields_count(self, response):
+        print('进入数据count')
+        tile_name = response.meta.get('tile_name')
+        fields_url = response.meta.get('fields_url')
+        field_json = json.loads(response.text)
+        field_count = field_json.get('count')
+        # 获取有多少条数据，如果有数据则可以获取条数，如果没有属性表，则None
+        if field_count:
+            # 有条数，json中添加layers
+            count = int(field_count)
+            nums = int(count/1000)
+            for i in range(nums+1):
+                if count == 1:
+                    self.data_field['resultOffset'] = ''
+                else:
+                    self.data_field['resultOffset'] = 1000*i
+                params = urlencode(self.data_field)
+                # 获取所有字段的json的url
+                field_url = fields_url + params
+                yield Request(field_url, callback=self.parse_filed, meta={
+                    'tile_name': tile_name
+                }, dont_filter=True)
+
+    def parse_filed(self, response):
+        print('进入获取fields数据的页面')
+        print(response.request.url)
+        all_field_json = json.loads(response.text)
+        fields = all_field_json.get('fields')
+        print(fields)
+        for item_field in fields:
+            print(item_field)
+

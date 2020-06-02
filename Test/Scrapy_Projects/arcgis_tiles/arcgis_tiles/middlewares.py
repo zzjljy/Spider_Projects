@@ -161,7 +161,7 @@ class ProxyMiddleWare(object):
     def get_random_proxy(self):
         '''随机从文件中读取proxy'''
         while 1:
-            with open('G:\\Scrapy_work\\myproxies\\myproxies\\proxies.txt', 'r') as f:
+            with open(r'D:\new_py_project\Spider_Projects\Test\Scrapy_Projects\arcgis_tiles\arcgis_tiles\proxies.txt', 'r') as f:
                 proxies = f.readlines()
             if proxies:
                 break

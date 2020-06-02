@@ -44,7 +44,7 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 0.3
+DOWNLOAD_DELAY = 1.5
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16
@@ -72,6 +72,7 @@ DOWNLOAD_DELAY = 0.3
 DOWNLOADER_MIDDLEWARES = {
    # 'arcgis_tiles.middlewares.ArcgisTilesDownloaderMiddleware': 543,
    'arcgis_tiles.middlewares.RandomUserAgentMiddleware': 543,
+   # 'arcgis_tiles.middlewares.ProxyMiddleWare': 544,
 }
 
 # Enable or disable extensions
