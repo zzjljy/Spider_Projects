@@ -6,6 +6,7 @@ from urllib import parse
 from urllib.parse import urlencode
 from arcgis_tiles.items import ArcgisTilesJson, ArcgisTilesItem
 from scrapy import Item, Field
+from scrapy.loader import ItemLoader
 
 
 class TilesSpider(scrapy.Spider):
@@ -193,12 +194,103 @@ class TilesSpider(scrapy.Spider):
                     'tile_name': tile_name
                 }, dont_filter=True)
 
-    def parse_filed(self, response):
+    def parse_filed1(self, response):
         print('进入获取fields数据的页面')
+        item = Item()
+        l_loader = ItemLoader(item=item)
+        layer_name = response.meta.get('tile_name')
         print(response.request.url)
         all_field_json = json.loads(response.text)
-        fields = all_field_json.get('fields')
-        print(fields)
-        for item_field in fields:
-            print(item_field)
+        # 所有的字段
+        fields_info = all_field_json.get('fields')
+        print(fields_info)
+        item.fields['layer_name'] = Field()
+        item.fields['create_table_info'] = Field()
+        item.fields['geom'] = Field()
+        l_loader.add_value('layer_name', layer_name)
+        create_table_info = 'create table if not exists %s(id integer primary key AUTOINCREMENT,' % layer_name
+        for field in fields_info:
+            item.fields[field.get('name')] = Field()
+            field_name = field.get('name') + ' '
+            field_type = field.get('type')
+            if field_type == 'esriFieldTypeOID':
+                field_type = 'integer'
+            elif field_type == 'esriFieldTypeInteger':
+                field_type = 'integer'
+            elif field_type == 'esriFieldTypeSmallInteger':
+                field_type = 'integer'
+            elif field_type == 'esriFieldTypeString':
+                field_type = 'character varying(254)'
+            elif field_type == 'esriFieldTypeDouble':
+                field_type = 'numeric'
+            else:
+                field_type = 'character varying(254)'
+            create_table_info += field_name
+            create_table_info += field_type
+            create_table_info += ','
+        create_table_info += 'geom geometry'
+        create_table_info += ')'
+        l_loader.add_value('create_table_info', create_table_info)
+        features = all_field_json.get('features')
+        if features:
+            for feature_item in features:
+                attributes = feature_item.get('attributes')
+                if attributes:
+                    for k, v in attributes.items():
+                        # item.fields[k] = Field()
+                        l_loader.add_value(k, v)
 
+                geometry = feature_item.get('geometry')
+                l_loader.add_value('geom', geometry)
+
+            yield l_loader.load_item()
+
+    def parse_filed(self, response):
+        print('进入获取fields数据的页面')
+        item = Item()
+        layer_name = response.meta.get('tile_name')
+        print(response.request.url)
+        all_field_json = json.loads(response.text)
+        # 所有的字段
+        fields_info = all_field_json.get('fields')
+        print(fields_info)
+        item.fields['layer_name'] = Field()
+        item['layer_name'] = layer_name
+        item.fields['create_table_info'] = Field()
+        item.fields['geom'] = Field()
+        create_table_info = 'create table if not exists %s(id integer primary key AUTOINCREMENT,' % layer_name
+        for field in fields_info:
+            item.fields[field.get('name')] = Field()
+            field_name = field.get('name') + ' '
+            field_type = field.get('type')
+            if field_type == 'esriFieldTypeOID':
+                field_type = 'integer'
+            elif field_type == 'esriFieldTypeInteger':
+                field_type = 'integer'
+            elif field_type == 'esriFieldTypeSmallInteger':
+                field_type = 'integer'
+            elif field_type == 'esriFieldTypeString':
+                field_type = 'character varying(254)'
+            elif field_type == 'esriFieldTypeDouble':
+                field_type = 'numeric'
+            else:
+                field_type = 'character varying(254)'
+            create_table_info += field_name
+            create_table_info += field_type
+            create_table_info += ','
+        create_table_info += 'geom geometry'
+        create_table_info += ')'
+        item['create_table_info'] = create_table_info
+        features = all_field_json.get('features')
+        if features:
+            for feature_item in features:
+                attributes = feature_item.get('attributes')
+                if attributes:
+                    for k, v in attributes.items():
+                        # item.fields[k] = Field()
+                        item[k] = v
+
+                geometry = feature_item.get('geometry')
+                item['geom'] = geometry
+                print(type(item))
+                yield item
