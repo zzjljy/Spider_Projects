@@ -113,7 +113,6 @@ class MongoPipeline():
         self.db1 = self.client[self.mongo_db]
 
     def process_item(self, item, spider):
-        # 瓦片进入后类型应该是ArcgisTilesItem，但是不知道为什么变成了None
         if isinstance(item, ArcgisTilesItem):
             data = dict(item)
             name = data.get('tile_collection')
@@ -187,25 +186,34 @@ class PostgresGeoItemPipeline():
         )
 
     def open_spider(self, spider):
-        self.db = psycopg2.connect(database=self.database, user=self.username,
+        self.coon = psycopg2.connect(database=self.database, user=self.username,
                                      password=self.password, host=self.host, port=self.port, )
-        self.cursor = self.db.cursor()
+        self.cursor = self.coon.cursor()
 
     def close_spider(self, spider):
         # self.cur.close()
-        self.db.close()
+        self.coon.close()
 
     def process_item(self, item, spider):
-        if isinstance(item, ArcgisTilesJson):
-            data = dict(item)
-            keys = ', '.join(data.keys())
-            values = ', '.join(['%s'] * len(data))
-            # sql = 'insert into service(service_name, service_config) values("%s")' % (values)
-            # sql = "insert into service(service_name, service_config) values ('1', '1')"
-            sql = 'insert into service (service_name, service_config) values (%s)' % (values)
-            try:
-                self.cursor.execute(sql, tuple(data.values()))
-                self.db.commit()
-            except Exception as e:
-                self.db.rollback()
+        data = dict(item)
+        layer_name = data.get('layer_name')
+        create_table_info = data.get('create_table_info')
+
+        del data['layer_name']
+        del data['create_table_info']
+        try:
+            self.cursor.execute(create_table_info)
+            self.coon.commit()
+        except Exception as e:
+            pass
+        keys = ', '.join(data.keys())
+        values = ', '.join(['%s'] * (len(data)-1))
+        values += ',GeomFromEWKT(%s)'
+        print(tuple(data.values()))
+        sql = "insert into %s (%s) values (%s)" % (layer_name, keys, values)
+        try:
+            self.cursor.execute(sql, tuple(data.values()))
+            self.coon.commit()
+        except Exception as e:
+            self.coon.rollback()
         return item

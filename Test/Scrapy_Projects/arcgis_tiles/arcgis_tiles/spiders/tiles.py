@@ -4,9 +4,10 @@ import scrapy
 from scrapy import Request, Spider
 from urllib import parse
 from urllib.parse import urlencode
-from arcgis_tiles.items import ArcgisTilesJson, ArcgisTilesItem
+from arcgis_tiles.items import ArcgisTilesJson, ArcgisTilesItem, FieldTestItem
 from scrapy import Item, Field
 from scrapy.loader import ItemLoader
+from arcgis_tiles.geojson_to_wkt import geojson_to_wkt
 
 
 class TilesSpider(scrapy.Spider):
@@ -251,6 +252,10 @@ class TilesSpider(scrapy.Spider):
         layer_name = response.meta.get('tile_name')
         print(response.request.url)
         all_field_json = json.loads(response.text)
+        # 获取wkid
+        wkid = all_field_json.get('spatialReference').get('wkid')
+        if not wkid:
+            wkid = 0
         # 所有的字段
         fields_info = all_field_json.get('fields')
         print(fields_info)
@@ -258,9 +263,10 @@ class TilesSpider(scrapy.Spider):
         item['layer_name'] = layer_name
         item.fields['create_table_info'] = Field()
         item.fields['geom'] = Field()
-        create_table_info = 'create table if not exists %s(id integer primary key AUTOINCREMENT,' % layer_name
+        # create_table_info = '''create table if not exists %s(id int primary key AUTOINCREMENT,''' % layer_name
+        create_table_info = '''create table if not exists %s(''' % layer_name
         for field in fields_info:
-            item.fields[field.get('name')] = Field()
+            # item.fields[field.get('name')] = Field()
             field_name = field.get('name') + ' '
             field_type = field.get('type')
             if field_type == 'esriFieldTypeOID':
@@ -287,10 +293,13 @@ class TilesSpider(scrapy.Spider):
                 attributes = feature_item.get('attributes')
                 if attributes:
                     for k, v in attributes.items():
-                        # item.fields[k] = Field()
+                        item.fields[k] = Field()
                         item[k] = v
 
                 geometry = feature_item.get('geometry')
-                item['geom'] = geometry
-                print(type(item))
+                geo_wkt = geojson_to_wkt(geometry)
+                geom_from_ewkt = 'SRID=%s;%s' % (wkid, geo_wkt)
+                # print(geom_from_ewkt)
+                item['geom'] = geom_from_ewkt
+
                 yield item
