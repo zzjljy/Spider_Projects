@@ -209,11 +209,11 @@ class PostgresGeoItemPipeline():
         keys = ', '.join(data.keys())
         values = ', '.join(['%s'] * (len(data)-1))
         values += ',GeomFromEWKT(%s)'
-        print(tuple(data.values()))
+        # print(tuple(data.values()))
         sql = "insert into %s (%s) values (%s)" % (layer_name, keys, values)
-        try:
-            self.cursor.execute(sql, tuple(data.values()))
-            self.coon.commit()
-        except Exception as e:
-            self.coon.rollback()
-        return item
+        # try:
+        self.cursor.execute(sql, tuple(data.values()))
+        self.coon.commit()
+        # except Exception as e:
+        #     self.coon.rollback()
+        # return item

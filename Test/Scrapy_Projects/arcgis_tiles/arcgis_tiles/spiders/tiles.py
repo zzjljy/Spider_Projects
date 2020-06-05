@@ -37,7 +37,7 @@ class TilesSpider(scrapy.Spider):
         'returnIdsOnly': 'false',
         'returnCountOnly': 'false',
         'returnDistinctValues': 'false',
-        'resultOffset': 0,
+        'resultOffset': 1,
         'f': 'pjson',
     }
 
@@ -88,11 +88,15 @@ class TilesSpider(scrapy.Spider):
             json_a_href = parse.urljoin(tile_base_url, a_link)
             # yield Request(json_a_href, callback=self.parse_json, meta={'tile_name': tile_name}, dont_filter=True)
         # fields 为了获取所有的fields的信息，先
-        params = urlencode(self.data_count)
-        fields_url = tile_base_url + '/0/query?'
-        fields_count_url = tile_base_url + '/0/query?' + params
-        yield Request(fields_count_url, callback=self.parse_fields_count, meta={'tile_name': tile_name,
-                                                                          'fields_url': fields_url}, dont_filter=True)
+        # params = urlencode(self.data_count)
+        # fields_url = tile_base_url + '/0/query?'
+        # fields_count_url = tile_base_url + '/0/query?' + params
+        # yield Request(fields_count_url, callback=self.parse_fields_count, meta={'tile_name': tile_name,
+        #                                                                   'fields_url': fields_url}, dont_filter=True)
+        layer_url = tile_base_url + '/layers'
+        yield Request(layer_url, callback=self.parse_layers, meta={'tile_name': tile_name,
+                                                                          'mapserver_url': tile_base_url}, dont_filter=True)
+
         ul = response.xpath('//div[@class="rbody"]/ul/li/ul')
         # 进入service详情页带startTiles
         if ul:
@@ -172,8 +176,25 @@ class TilesSpider(scrapy.Spider):
             yield item_tile
         pass
 
+    def parse_layers(self, response):
+        # 解析有多少层，对应多少个数据表
+        print('进入layers页面')
+        tile_name = response.meta.get('tile_name')
+        laysers_ul = response.xpath('//div[@class="rbody"]/ul')
+        params = urlencode(self.data_count)
+        for layser_ul in laysers_ul:
+            layer_path = layser_ul.xpath('./h3/a/@href').extract()[0]
+            # layer_level = layser_ul.xpath('./h3/text()').extract()[1].strip()[1:-1]
+            layer_name = tile_name+'_'+layser_ul.xpath('./h3/a/text()').extract()[0]+'_'+layser_ul.xpath('./h3/text()').extract()[1].strip()[1:-1]
+            # layer_name = tile_name+layser_ul.xpath('./h3/a/text()').extract()[0]+layser_ul.xpath('./h3/text()').extract()[1]
+            fields_url = self.base_url+layer_path + '/query?'
+            layer_url = self.base_url+layer_path + '/query?' + params
+            yield Request(layer_url, callback=self.parse_fields_count, meta={'tile_name': layer_name,
+                                                                              'fields_url': fields_url}, dont_filter=True)
+
+        pass
+
     def parse_fields_count(self, response):
-        print('进入数据count')
         tile_name = response.meta.get('tile_name')
         fields_url = response.meta.get('fields_url')
         field_json = json.loads(response.text)
@@ -182,7 +203,7 @@ class TilesSpider(scrapy.Spider):
         if field_count:
             # 有条数，json中添加layers
             count = int(field_count)
-            print('数据条数：', count)
+            print('count数据条数：', count, tile_name)
             nums = int(count/1000)
             for i in range(nums+1):
                 if i == 0:
@@ -196,63 +217,10 @@ class TilesSpider(scrapy.Spider):
                     'tile_name': tile_name
                 }, dont_filter=True)
 
-    def parse_filed1(self, response):
-        print('进入获取fields数据的页面')
-        item = Item()
-        l_loader = ItemLoader(item=item)
-        layer_name = response.meta.get('tile_name')
-        print(response.request.url)
-        all_field_json = json.loads(response.text)
-        # 所有的字段
-        fields_info = all_field_json.get('fields')
-        print(fields_info)
-        item.fields['layer_name'] = Field()
-        item.fields['create_table_info'] = Field()
-        item.fields['geom'] = Field()
-        l_loader.add_value('layer_name', layer_name)
-        create_table_info = 'create table if not exists %s(id integer primary key AUTOINCREMENT,' % layer_name
-        for field in fields_info:
-            item.fields[field.get('name')] = Field()
-            field_name = field.get('name') + ' '
-            field_type = field.get('type')
-            if field_type == 'esriFieldTypeOID':
-                field_type = 'integer'
-            elif field_type == 'esriFieldTypeInteger':
-                field_type = 'integer'
-            elif field_type == 'esriFieldTypeSmallInteger':
-                field_type = 'integer'
-            elif field_type == 'esriFieldTypeString':
-                field_type = 'character varying(254)'
-            elif field_type == 'esriFieldTypeDouble':
-                field_type = 'numeric'
-            else:
-                field_type = 'character varying(254)'
-            create_table_info += field_name
-            create_table_info += field_type
-            create_table_info += ','
-        create_table_info += 'geom geometry'
-        create_table_info += ')'
-        l_loader.add_value('create_table_info', create_table_info)
-        features = all_field_json.get('features')
-        if features:
-            for feature_item in features:
-                attributes = feature_item.get('attributes')
-                if attributes:
-                    for k, v in attributes.items():
-                        # item.fields[k] = Field()
-                        l_loader.add_value(k, v)
-
-                geometry = feature_item.get('geometry')
-                l_loader.add_value('geom', geometry)
-
-            yield l_loader.load_item()
-
     def parse_filed(self, response):
         print('进入获取fields数据的页面', response.meta.get('tile_name'))
-        print(response.request.url)
         item = Item()
         layer_name = response.meta.get('tile_name')
-        print(response.request.url)
         all_field_json = json.loads(response.text)
         if not all_field_json.get('error'):
             # 获取wkid
@@ -261,7 +229,7 @@ class TilesSpider(scrapy.Spider):
 
             # 所有的字段
             fields_info = all_field_json.get('fields')
-            print(fields_info)
+            print(layer_name, 'fields', fields_info)
             item.fields['layer_name'] = Field()
             item['layer_name'] = layer_name
             item.fields['create_table_info'] = Field()
