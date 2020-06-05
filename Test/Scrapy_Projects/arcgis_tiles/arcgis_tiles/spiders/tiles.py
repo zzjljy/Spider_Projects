@@ -69,7 +69,7 @@ class TilesSpider(scrapy.Spider):
                 folder_path = li.xpath('./a/@href').extract()[0]
                 if folder_path:
                     folder_link = self.base_url + folder_path
-                    # yield Request(folder_link, callback=self.parse_folders, dont_filter=True)
+                    yield Request(folder_link, callback=self.parse_folders, dont_filter=True)
                 pass
         pass
 
@@ -182,9 +182,10 @@ class TilesSpider(scrapy.Spider):
         if field_count:
             # 有条数，json中添加layers
             count = int(field_count)
+            print('数据条数：', count)
             nums = int(count/1000)
             for i in range(nums+1):
-                if count == 1:
+                if i == 0:
                     self.data_field['resultOffset'] = ''
                 else:
                     self.data_field['resultOffset'] = 1000*i
@@ -247,59 +248,61 @@ class TilesSpider(scrapy.Spider):
             yield l_loader.load_item()
 
     def parse_filed(self, response):
-        print('进入获取fields数据的页面')
+        print('进入获取fields数据的页面', response.meta.get('tile_name'))
+        print(response.request.url)
         item = Item()
         layer_name = response.meta.get('tile_name')
         print(response.request.url)
         all_field_json = json.loads(response.text)
-        # 获取wkid
-        wkid = all_field_json.get('spatialReference').get('wkid')
-        if not wkid:
+        if not all_field_json.get('error'):
+            # 获取wkid
             wkid = 0
-        # 所有的字段
-        fields_info = all_field_json.get('fields')
-        print(fields_info)
-        item.fields['layer_name'] = Field()
-        item['layer_name'] = layer_name
-        item.fields['create_table_info'] = Field()
-        item.fields['geom'] = Field()
-        # create_table_info = '''create table if not exists %s(id int primary key AUTOINCREMENT,''' % layer_name
-        create_table_info = '''create table if not exists %s(''' % layer_name
-        for field in fields_info:
-            # item.fields[field.get('name')] = Field()
-            field_name = field.get('name') + ' '
-            field_type = field.get('type')
-            if field_type == 'esriFieldTypeOID':
-                field_type = 'integer'
-            elif field_type == 'esriFieldTypeInteger':
-                field_type = 'integer'
-            elif field_type == 'esriFieldTypeSmallInteger':
-                field_type = 'integer'
-            elif field_type == 'esriFieldTypeString':
-                field_type = 'character varying(254)'
-            elif field_type == 'esriFieldTypeDouble':
-                field_type = 'numeric'
-            else:
-                field_type = 'character varying(254)'
-            create_table_info += field_name
-            create_table_info += field_type
-            create_table_info += ','
-        create_table_info += 'geom geometry'
-        create_table_info += ')'
-        item['create_table_info'] = create_table_info
-        features = all_field_json.get('features')
-        if features:
-            for feature_item in features:
-                attributes = feature_item.get('attributes')
-                if attributes:
-                    for k, v in attributes.items():
-                        item.fields[k] = Field()
-                        item[k] = v
+            wkid = all_field_json.get('spatialReference').get('wkid')
 
-                geometry = feature_item.get('geometry')
-                geo_wkt = geojson_to_wkt(geometry)
-                geom_from_ewkt = 'SRID=%s;%s' % (wkid, geo_wkt)
-                # print(geom_from_ewkt)
-                item['geom'] = geom_from_ewkt
+            # 所有的字段
+            fields_info = all_field_json.get('fields')
+            print(fields_info)
+            item.fields['layer_name'] = Field()
+            item['layer_name'] = layer_name
+            item.fields['create_table_info'] = Field()
+            item.fields['geom'] = Field()
+            # create_table_info = '''create table if not exists %s(id int primary key AUTOINCREMENT,''' % layer_name
+            create_table_info = '''create table if not exists %s(''' % layer_name
+            for field in fields_info:
+                # item.fields[field.get('name')] = Field()
+                field_name = field.get('name') + ' '
+                field_type = field.get('type')
+                if field_type == 'esriFieldTypeOID':
+                    field_type = 'integer'
+                elif field_type == 'esriFieldTypeInteger':
+                    field_type = 'integer'
+                elif field_type == 'esriFieldTypeSmallInteger':
+                    field_type = 'integer'
+                elif field_type == 'esriFieldTypeString':
+                    field_type = 'character varying(254)'
+                elif field_type == 'esriFieldTypeDouble':
+                    field_type = 'numeric'
+                else:
+                    field_type = 'character varying(254)'
+                create_table_info += field_name
+                create_table_info += field_type
+                create_table_info += ','
+            create_table_info += 'geom geometry'
+            create_table_info += ')'
+            item['create_table_info'] = create_table_info
+            features = all_field_json.get('features')
+            if features:
+                for feature_item in features:
+                    attributes = feature_item.get('attributes')
+                    if attributes:
+                        for k, v in attributes.items():
+                            item.fields[k] = Field()
+                            item[k] = v
 
-                yield item
+                    geometry = feature_item.get('geometry')
+                    geo_wkt = geojson_to_wkt(geometry)
+                    geom_from_ewkt = 'SRID=%s;%s' % (wkid, geo_wkt)
+                    # print(geom_from_ewkt)
+                    item['geom'] = geom_from_ewkt
+
+                    yield item
