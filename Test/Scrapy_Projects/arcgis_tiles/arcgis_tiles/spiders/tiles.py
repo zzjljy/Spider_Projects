@@ -4,7 +4,7 @@ import scrapy
 from scrapy import Request, Spider
 from urllib import parse
 from urllib.parse import urlencode
-from arcgis_tiles.items import ArcgisTilesJson, ArcgisTilesItem, FieldTestItem
+from arcgis_tiles.items import ArcgisTilesJson, ArcgisTilesItem, FieldTestItem, ArcgisFieldNameItem
 from scrapy import Item, Field
 from scrapy.loader import ItemLoader
 from arcgis_tiles.geojson_to_wkt import geojson_to_wkt
@@ -86,7 +86,7 @@ class TilesSpider(scrapy.Spider):
             a_link = '?f=json'
             # tile 的services的json信息
             json_a_href = parse.urljoin(tile_base_url, a_link)
-            # yield Request(json_a_href, callback=self.parse_json, meta={'tile_name': tile_name}, dont_filter=True)
+            yield Request(json_a_href, callback=self.parse_json, meta={'tile_name': tile_name}, dont_filter=True)
         # fields 为了获取所有的fields的信息，先
         # params = urlencode(self.data_count)
         # fields_url = tile_base_url + '/0/query?'
@@ -185,17 +185,19 @@ class TilesSpider(scrapy.Spider):
         for layser_ul in laysers_ul:
             layer_path = layser_ul.xpath('./h3/a/@href').extract()[0]
             # layer_level = layser_ul.xpath('./h3/text()').extract()[1].strip()[1:-1]
+            service_name = tile_name
             layer_name = tile_name+'_'+layser_ul.xpath('./h3/a/text()').extract()[0]+'_'+layser_ul.xpath('./h3/text()').extract()[1].strip()[1:-1]
             # layer_name = tile_name+layser_ul.xpath('./h3/a/text()').extract()[0]+layser_ul.xpath('./h3/text()').extract()[1]
             fields_url = self.base_url+layer_path + '/query?'
             layer_url = self.base_url+layer_path + '/query?' + params
-            yield Request(layer_url, callback=self.parse_fields_count, meta={'tile_name': layer_name,
-                                                                              'fields_url': fields_url}, dont_filter=True)
+            yield Request(layer_url, callback=self.parse_fields_count, meta={'tile_name': layer_name, 'service_name':
+                          service_name, 'fields_url': fields_url}, dont_filter=True)
 
         pass
 
     def parse_fields_count(self, response):
         tile_name = response.meta.get('tile_name')
+        service_name = response.meta.get('service_name')
         fields_url = response.meta.get('fields_url')
         field_json = json.loads(response.text)
         field_count = field_json.get('count')
@@ -214,13 +216,18 @@ class TilesSpider(scrapy.Spider):
                 # 获取所有字段的json的url
                 field_url = fields_url + params
                 yield Request(field_url, callback=self.parse_filed, meta={
-                    'tile_name': tile_name
+                    'tile_name': tile_name, 'service_name': service_name
                 }, dont_filter=True)
 
     def parse_filed(self, response):
         print('进入获取fields数据的页面', response.meta.get('tile_name'))
+        layer_item = ArcgisFieldNameItem()
         item = Item()
         layer_name = response.meta.get('tile_name')
+        service_name = response.meta.get('service_name')
+        layer_item['service_name'] = service_name
+        layer_item['layers'] = layer_name
+        yield layer_item
         all_field_json = json.loads(response.text)
         if not all_field_json.get('error'):
             # 获取wkid

@@ -48,16 +48,17 @@ class PostgresJsonPipeline():
     def process_item(self, item, spider):
         if isinstance(item, ArcgisTilesJson):
             data = dict(item)
+            service_name = data.get('service_name')
+
             keys = ', '.join(data.keys())
             values = ', '.join(['%s'] * len(data))
-            # sql = 'insert into service(service_name, service_config) values("%s")' % (values)
-            # sql = "insert into service(service_name, service_config) values ('1', '1')"
             sql = 'insert into service (service_name, service_config) values (%s)' % (values)
             try:
                 self.cursor.execute(sql, tuple(data.values()))
                 self.db.commit()
             except Exception as e:
                 self.db.rollback()
+
         return item
 
 
@@ -195,25 +196,85 @@ class PostgresGeoItemPipeline():
         self.coon.close()
 
     def process_item(self, item, spider):
-        data = dict(item)
-        layer_name = data.get('layer_name')
-        create_table_info = data.get('create_table_info')
+        if not isinstance(item, ArcgisTilesItem) and not isinstance(item, ArcgisTilesJson) and not isinstance(
+            item, ArcgisFieldNameItem
+        ):
+            data = dict(item)
+            layer_name = data.get('layer_name')
+            create_table_info = data.get('create_table_info')
 
-        del data['layer_name']
-        del data['create_table_info']
-        try:
-            self.cursor.execute(create_table_info)
-            self.coon.commit()
-        except Exception as e:
-            pass
-        keys = ', '.join(data.keys())
-        values = ', '.join(['%s'] * (len(data)-1))
-        values += ',GeomFromEWKT(%s)'
-        # print(tuple(data.values()))
-        sql = "insert into %s (%s) values (%s)" % (layer_name, keys, values)
-        # try:
-        self.cursor.execute(sql, tuple(data.values()))
-        self.coon.commit()
-        # except Exception as e:
-        #     self.coon.rollback()
-        # return item
+            del data['layer_name']
+            del data['create_table_info']
+            try:
+                self.cursor.execute(create_table_info)
+                self.coon.commit()
+            except Exception as e:
+                pass
+            keys = ', '.join(data.keys())
+            values = ', '.join(['%s'] * (len(data)))
+            # values = ', '.join(['%s'] * (len(data)-1))
+            # values += ',GeomFromEWKT(%s)'
+            # print(tuple(data.values()))
+            sql = "insert into %s (%s) values (%s)" % (layer_name, keys, values)
+            print(sql)
+            try:
+                self.cursor.execute(sql, tuple(data.values()))
+                self.coon.commit()
+            except Exception as e:
+                print(data.values())
+                self.coon.rollback()
+        return item
+
+
+class PostgresServiceLayerPipeline():
+    # 如果主键，有存在的会报错
+    def __init__(self, host, port, database, username, password):
+        self.host = host
+        self.port = port
+        self.database = database
+        self.username = username
+        self.password = password
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(
+            host=crawler.settings.get('POSTGRES_HOST'),
+            port=crawler.settings.get('POSTGRES_PORT'),
+            database=crawler.settings.get('POSTGRES_DATABASE'),
+            username=crawler.settings.get('POSTGRES_USERNAME'),
+            password=crawler.settings.get('POSTGRES_PASSWORD'),
+        )
+
+    def open_spider(self, spider):
+        self.db = psycopg2.connect(database=self.database, user=self.username,
+                                   password=self.password, host=self.host, port=self.port, )
+        self.cursor = self.db.cursor()
+
+    def close_spider(self, spider):
+        # self.cur.close()
+        self.db.close()
+
+    def process_item(self, item, spider):
+        if isinstance(item, ArcgisFieldNameItem):
+            data = dict(item)
+            service_name = data.get('service_name')
+            layers = data.get('layers')
+            print(service_name, layers)
+            try:
+                insert_sql = 'create table if not exists service_layers(service_name varchar(255), layers text)'
+                self.cursor.execute(insert_sql)
+                self.db.commit()
+                pass
+            except Exception as e:
+                pass
+            # try:
+            keys = ', '.join(data.keys())
+            values = ', '.join(['%s'] * (len(data)))
+            sql = "insert into service_layers(%s) values (%s)" % (keys, values)
+            self.cursor.execute(sql, tuple(data.values()))
+            self.db.commit()
+            # except Exception as e:
+            #     self.db.rollback()
+
+
+        return item

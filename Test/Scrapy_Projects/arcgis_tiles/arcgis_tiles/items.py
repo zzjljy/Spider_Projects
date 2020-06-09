@@ -21,6 +21,13 @@ class ArcgisTilesJson(scrapy.Item):
     layers = scrapy.Field()
 
 
+class ArcgisFieldNameItem(scrapy.Item):
+    # collection = table = 'service_layers'
+    service_name = scrapy.Field()
+    # service_config = scrapy.Field()
+    layers = scrapy.Field()
+
+
 class ArcgisTilesItem(scrapy.Item):
     tile_collection = scrapy.Field()
     x = scrapy.Field()
