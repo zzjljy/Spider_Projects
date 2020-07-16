@@ -86,7 +86,7 @@ class TilesSpider(scrapy.Spider):
             a_link = '?f=json'
             # tile 的services的json信息
             json_a_href = parse.urljoin(tile_base_url, a_link)
-            yield Request(json_a_href, callback=self.parse_json, meta={'tile_name': tile_name}, dont_filter=True)
+            # yield Request(json_a_href, callback=self.parse_json, meta={'tile_name': tile_name}, dont_filter=True)
         # fields 为了获取所有的fields的信息，先
         # params = urlencode(self.data_count)
         # fields_url = tile_base_url + '/0/query?'
@@ -94,8 +94,8 @@ class TilesSpider(scrapy.Spider):
         # yield Request(fields_count_url, callback=self.parse_fields_count, meta={'tile_name': tile_name,
         #                                                                   'fields_url': fields_url}, dont_filter=True)
         layer_url = tile_base_url + '/layers'
-        yield Request(layer_url, callback=self.parse_layers, meta={'tile_name': tile_name,
-                                                                          'mapserver_url': tile_base_url}, dont_filter=True)
+        # yield Request(layer_url, callback=self.parse_layers, meta={'tile_name': tile_name,
+        #                                                                   'mapserver_url': tile_base_url}, dont_filter=True)
 
         ul = response.xpath('//div[@class="rbody"]/ul/li/ul')
         # 进入service详情页带startTiles
@@ -114,17 +114,17 @@ class TilesSpider(scrapy.Spider):
                     end_row = int(end_link.split('/')[-2])
                     end_col = int(end_link.split('/')[-1])
                     path = '/'.join(start_link.split('/')[:-3])
-                    if level < 1:
+                    if level < 3:
                         for row in range(start_row, end_row+1):
                             for col in range(start_col, end_col+1):
                                 base_path = path + '/' + str(level) + '/' + str(row) + '/' + str(col)
                                 tile_url = self.base_url + base_path
-                                # yield Request(tile_url, callback=self.parse_tile, meta={
-                                #     'tile_name': tile_name,
-                                #     'row': row,
-                                #     'col': col,
-                                #     'level': level
-                                # }, dont_filter=True)
+                                yield Request(tile_url, callback=self.parse_tile, meta={
+                                    'tile_name': tile_name,
+                                    'row': row,
+                                    'col': col,
+                                    'level': level
+                                }, dont_filter=True)
                 else:
                     pass
 
