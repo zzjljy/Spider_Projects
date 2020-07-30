@@ -1,0 +1,7 @@
+beautifulsoup4
+geodaisy
+lxml
+psycopg2
+pymongo
+requests
+Scrapy

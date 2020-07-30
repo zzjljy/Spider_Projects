@@ -44,7 +44,7 @@ ROBOTSTXT_OBEY = False
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 0.01
+DOWNLOAD_DELAY = 0
 # The download delay setting will honor only one of:
 #CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #CONCURRENT_REQUESTS_PER_IP = 16
@@ -85,12 +85,17 @@ DOWNLOADER_MIDDLEWARES = {
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
    # 'arcgis_tiles.pipelines.ArcgisTilesPipeline': 300,
+    # json信息
    'arcgis_tiles.pipelines.PostgresJsonPipeline': 302,
-   # 'arcgis_tiles.pipelines.MongoPipeline': 300,
+    # 瓦片存入mongo
+   'arcgis_tiles.pipelines.MongoPipeline': 304,
+    # 瓦片存入mysql
     # 'arcgis_tiles.pipelines.MysqlPipeline': 302,
+    #瓦片存入sqlite
     'arcgis_tiles.pipelines.Sqlite3Pipeline': 301,
+    # 数据存入postgres
     'arcgis_tiles.pipelines.PostgresGeoItemPipeline': 305,
-    'arcgis_tiles.pipelines.PostgresServiceLayerPipeline': 303,
+    # 'arcgis_tiles.pipelines.PostgresServiceLayerPipeline': 303,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
