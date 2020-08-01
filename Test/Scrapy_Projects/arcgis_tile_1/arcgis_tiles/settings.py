@@ -29,7 +29,7 @@ MYSQL_PORT = 3306
 MONGO_URI = 'localhost'
 MONGO_DB = 'XXL_SYSTEM'
 
-SQLITE_FILE = r'E:\dwg2000.sqlite3'
+SQLITE_FILE = r'D:\dwg2000.sqlite3'
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
@@ -88,11 +88,11 @@ ITEM_PIPELINES = {
     # json信息
    # 'arcgis_tiles.pipelines.PostgresJsonPipeline': 302,
     # 瓦片存入mongo
-   # 'arcgis_tiles.pipelines.MongoPipeline': 304,
+   'arcgis_tiles.pipelines.MongoPipeline': 304,
     # 瓦片存入mysql
     # 'arcgis_tiles.pipelines.MysqlPipeline': 302,
     #瓦片存入sqlite
-    'arcgis_tiles.pipelines.Sqlite3Pipeline': 301,
+    # 'arcgis_tiles.pipelines.Sqlite3Pipeline': 301,
     # 数据存入postgres
     # 'arcgis_tiles.pipelines.PostgresGeoItemPipeline': 305,
     # 'arcgis_tiles.pipelines.PostgresServiceLayerPipeline': 303,

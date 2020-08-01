@@ -2,6 +2,7 @@
 import json
 import scrapy
 import urllib
+import math
 from scrapy import Request, Spider
 from urllib import parse
 from urllib.parse import urlencode
@@ -13,9 +14,13 @@ from arcgis_tiles.geojson_to_wkt import geojson_to_wkt
 
 class TilesSpider(scrapy.Spider):
     name = 'tiles'
-    allowed_domains = ['10.12.200.110:8000']
-    base_url = 'http://10.12.200.110:8000'
-    start_urls = ['http://10.12.200.110:8000/rest/services/DWG2000/MapServer']
+    # allowed_domains = ['10.12.200.110:8000']
+    # base_url = 'http://10.12.200.110:8000'
+    # start_urls = ['http://10.12.200.110:8000/rest/services/DWG2000/MapServer']
+    allowed_domains = ['61.240.19.180:6080']
+    base_url = 'http://61.240.19.180:6080'
+    start_urls = ['http://61.240.19.180:6080/arcgis/rest/services/JH/JHTG1017/MapServer']
+
     scheme = 'http'
     data_count = {
         'where': '1=1',
@@ -81,8 +86,11 @@ class TilesSpider(scrapy.Spider):
         # tile services 的名称，对应数据库中的名称
         tile_name = response.meta.get('tile_name')
         print('tile_name：', tile_name)
+        a_link = '?f=json'
+        json_url = parse.urljoin(tile_base_url, a_link)
+        yield Request(json_url, callback=self.parse_json_1, meta={'tile_name': tile_name}, dont_filter=True)
         # / html / body / table[3] / tbody / tr / td / a[1] json
-        json_text = response.xpath('//tr/td[@class="apiref"]/a[1]/text()').extract()[0]
+        # json_text = response.xpath('//tr/td[@class="apiref"]/a[1]/text()').extract()[0]
         # if json_text.strip() == 'JSON':
         #     a_link = response.xpath('//tr/td[@class="apiref"]/a[1]/@href').extract()[0]
         #     a_link = '?f=json'
@@ -99,39 +107,39 @@ class TilesSpider(scrapy.Spider):
         # yield Request(layer_url, callback=self.parse_layers, meta={'tile_name': tile_name,
         #                                                                   'mapserver_url': tile_base_url}, dont_filter=True)
 
-        ul = response.xpath('//div[@class="rbody"]/ul/li/ul')
-        # 进入service详情页带startTiles
-        if ul:
-            for li in ul:
-                a_link = li.xpath('./li')
+        # ul = response.xpath('//div[@class="rbody"]/ul/li/ul')
+        # # 进入service详情页带startTiles
+        # if ul:
+        #     for li in ul:
+        #         a_link = li.xpath('./li')
+        #
+        #         start_tile = a_link.xpath('./a[1]/text()').extract()[0]
+        #         if start_tile.strip() == 'Start Tile':
+        #             start_link = a_link.xpath('./a[1]/@href').extract()[0]
+        #             end_link = a_link.xpath('./a[2]/@href').extract()[0]
+        #             end_tile = a_link.xpath('./a[2]/text()').extract()[0]
+        #             level = int(start_link.split('/')[-3])
+        #             start_row = int(start_link.split('/')[-2])
+        #             start_col = int(start_link.split('/')[-1])
+        #             end_row = int(end_link.split('/')[-2])
+        #             end_col = int(end_link.split('/')[-1])
+        #             path = '/'.join(start_link.split('/')[:-3])
+        #             # if level < 3:
+        #             for row in range(start_row, end_row+1):
+        #                 for col in range(start_col, end_col+1):
+        #                     base_path = path + '/' + str(level) + '/' + str(row) + '/' + str(col)
+        #                     tile_url = self.base_url + base_path
+        #                     yield Request(tile_url, callback=self.parse_tile, meta={
+        #                         'tile_name': tile_name,
+        #                         'row': row,
+        #                         'col': col,
+        #                         'level': level
+        #                     }, dont_filter=True)
+        #         else:
+        #             pass
 
-                start_tile = a_link.xpath('./a[1]/text()').extract()[0]
-                if start_tile.strip() == 'Start Tile':
-                    start_link = a_link.xpath('./a[1]/@href').extract()[0]
-                    end_link = a_link.xpath('./a[2]/@href').extract()[0]
-                    end_tile = a_link.xpath('./a[2]/text()').extract()[0]
-                    level = int(start_link.split('/')[-3])
-                    start_row = int(start_link.split('/')[-2])
-                    start_col = int(start_link.split('/')[-1])
-                    end_row = int(end_link.split('/')[-2])
-                    end_col = int(end_link.split('/')[-1])
-                    path = '/'.join(start_link.split('/')[:-3])
-                    # if level < 3:
-                    for row in range(start_row, end_row+1):
-                        for col in range(start_col, end_col+1):
-                            base_path = path + '/' + str(level) + '/' + str(row) + '/' + str(col)
-                            tile_url = self.base_url + base_path
-                            yield Request(tile_url, callback=self.parse_tile, meta={
-                                'tile_name': tile_name,
-                                'row': row,
-                                'col': col,
-                                'level': level
-                            }, dont_filter=True)
-                else:
-                    pass
-
-        else:
-            pass
+        # else:
+        #     pass
 
     def parse_folders(self, response):
         print('folder页面进入')
@@ -159,6 +167,73 @@ class TilesSpider(scrapy.Spider):
         tile_item['service_config'] = tile_json
         yield tile_item
         pass
+
+    def parse_json_1(self, response):
+        # json信息的解析
+        tile_name = response.meta.get('tile_name')
+        base_url = response.request.url[:-7]
+        print('进入json页面', tile_name)
+        tile_json = response.text
+        tile_json = json.loads(tile_json)
+        origin = tile_json.get('tileInfo').get('origin')
+        origin_x = origin.get('x')
+        origin_y = origin.get('y')
+        level_resolution = tile_json.get('tileInfo').get('lods')
+        initia = tile_json.get('fullExtent')
+        full = tile_json.get('initialExtent')
+        if not initia:
+            initia = tile_json.get('initialExtent')
+        xmin = initia.get('xmin')
+        ymin = initia.get('ymin')
+        xmax = initia.get('xmax')
+        ymax = initia.get('ymax')
+        info = {
+            2000000: 529.16772500211675,
+            1000000: 264.58386250105838,
+            500000: 132.29193125052919,
+            250000: 66.145965625264594,
+            125000: 33.072982812632297,
+            64000: 16.933367200067735,
+            32000: 8.4666836000338677,
+            16000: 4.2333418000169338,
+            8000: 2.1166709000084669,
+            5000: 1.3229193125052918,
+            4000: 1.0583354500042335,
+            3000: 0.79375158750317509,
+            2000: 0.52916772500211673,
+            1000: 0.26458386250105836,
+            500: 0.13229193125052918,
+            250: 0.066145965625264591
+        }
+        for level_resolution_scale in level_resolution:
+            level = level_resolution_scale.get('level')
+            # resolution = level_resolution_scale.get('resolution')
+            scale = level_resolution_scale.get('scale')
+            # resolution = scale * 0.0254000508 / 96
+            resolution = info.get(scale)
+            if not resolution:
+                resolution = level_resolution_scale.get('resolution')
+            # resolution = level_resolution_scale.get('resolution')
+            img_meter = resolution * 256
+            start_col = (xmin - origin_x) / resolution / 256
+            end_col = (xmax - origin_x) / resolution / 256
+            start_row = (origin_y - ymax) / resolution / 256
+            end_row = (origin_y - ymin) / resolution / 256
+            print('row,col,level', level, start_row, start_col, end_row, end_col)
+            for row in range(int(start_row)-1, math.ceil(end_row)+1):
+                for col in range(int(start_col)-1, math.ceil(end_col)+1):
+                    # if level < 6:
+                    tile_url = base_url + '/tile' + '/' + str(level) + '/' + str(row) + '/' + str(col)
+                    # tile_url = self.base_url + base_path
+                    yield Request(tile_url, callback=self.parse_tile, meta={
+                        'tile_name': tile_name,
+                        'row': row,
+                        'col': col,
+                        'level': level
+                    }, dont_filter=True)
+
+
+
 
     def parse_tile(self, response):
         # 瓦片解析
