@@ -148,9 +148,11 @@ class Sqlite3Pipeline():
 
     def open_spider(self, spider):
         self.conn = sqlite3.connect(self.sqlite_file)
-        self.cur = self.conn.cursor()
+        self.conn.execute("PRAGMA synchronous = OFF;")
+        # self.cur = self.conn.cursor()
 
     def close_spider(self, spider):
+        # self.cur.close()
         self.conn.close()
 
     def process_item(self, item, spider):
@@ -159,13 +161,13 @@ class Sqlite3Pipeline():
             name = str(data.get('tile_collection'))
             del data['tile_collection']
             try:
-                self.cur.execute(
+                self.conn.execute(
                     "create table if not exists {0}(id integer primary key AUTOINCREMENT,x integer , y integer , "
                     "z integer ,image blob)".format(name))
                 self.conn.commit()
             except Exception as e:
                 pass
-            self.cur.execute("insert into {0}(x, y, z, image) values (?, ?, ?, ?)".format(name),
+            self.conn.execute("insert into {0}(x, y, z, image) values (?, ?, ?, ?)".format(name),
                         (data.get('x'), data.get('y'), data.get('z'), sqlite3.Binary(data.get('image'))))
 
             # self.cur.execute(insert_sql, tuple(data.values()))
